@@ -118,6 +118,25 @@ export function AgentPreview({ agentDetails }: IAgentPreviewProps): ReactNode {
   const [messageList, setMessageList] = useState<IChatItem[]>([]);
   const [isResponding, setIsResponding] = useState(false);
   const [isLoadingChatHistory, setIsLoadingChatHistory] = useState(true);
+  const [starterConfig, setStarterConfig] = useState<{
+    questions: string[];
+    description: string;
+    aboutUrl: string;
+  }>({ questions: [], description: "", aboutUrl: "" });
+
+  useEffect(() => {
+    const loadStarterConfig = async () => {
+      try {
+        const response = await fetch("/starter-questions", { credentials: "include" });
+        if (response.ok) {
+          setStarterConfig(await response.json());
+        }
+      } catch (e) {
+        console.error("Failed to load starter questions:", e);
+      }
+    };
+    loadStarterConfig();
+  }, []);
 
   const loadChatHistory = async () => {
     try {
@@ -592,6 +611,36 @@ export function AgentPreview({ agentDetails }: IAgentPreviewProps): ReactNode {
                     {agentDetails.name}
                   </Caption1>
                   <Title3>How can I help you today?</Title3>
+                  {starterConfig.description && (
+                    <Body1 className={styles.starterDescription}>
+                      {starterConfig.description}
+                    </Body1>
+                  )}
+                  {starterConfig.questions.length > 0 && (
+                    <div className={styles.starterQuestions}>
+                      {starterConfig.questions.map((question, index) => (
+                        <Button
+                          key={`starter-${index}`}
+                          appearance="outline"
+                          size="small"
+                          disabled={isResponding}
+                          onClick={() => onSend(question)}
+                        >
+                          {question}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                  {starterConfig.aboutUrl && (
+                    <a
+                      className={styles.aboutLink}
+                      href={starterConfig.aboutUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Built with Azure AI Foundry · About this project ↗
+                    </a>
+                  )}
                 </div>
               )}
               <AgentPreviewChatBot

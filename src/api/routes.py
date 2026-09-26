@@ -317,6 +317,16 @@ async def get_chat_agent(
     return JSONResponse(content={"name": agent.name, "version": agent.version, "metadata": agent.metadata, "agentPlaygroundUrl": agent_playground_url})
 
 
+@router.get("/starter-questions")
+async def get_starter_questions():
+    """Starter questions and branding shown in the chat's empty state.
+    Edit api/starter_questions.json to customize."""
+    try:
+        with open(os.path.join(os.path.dirname(__file__), "starter_questions.json")) as f:
+            return JSONResponse(content=json.load(f))
+    except FileNotFoundError:
+        return JSONResponse(content={"questions": [], "description": "", "aboutUrl": ""})
+
 @router.post("/chat")
 async def chat(
     request: Request,

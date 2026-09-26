@@ -1,0 +1,11 @@
+{
+  "questions": [
+    "What are the risks of bone fracture for astronauts on long-duration spaceflight?",
+    "How does simulated microgravity affect host-pathogen interactions?",
+    "How did the Plant Water Management experiments on the ISS work?",
+    "What tools did NASA build to study gene expression aboard the ISS?",
+    "What reproducibility issues did NASA identify in space radiation science?"
+  ],
+  "description": "A research assistant for space biology, grounded in NASA's scientific literature.",
+  "aboutUrl": "https://github.com/apost71/space-apps-foundry-demo"
+}
