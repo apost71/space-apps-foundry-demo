@@ -4,6 +4,8 @@
 import asyncio
 import json
 import os
+import re
+import urllib.parse
 from datetime import datetime, timezone
 from typing import AsyncGenerator, Mapping, Optional, Dict
 
@@ -149,6 +151,28 @@ async def get_or_create_conversation(
     
     return conversation
 
+def _citation_links(text: str, annotations: list) -> str:
+    """Replace 【...†source】 citation tokens with markdown links to the
+    source documents (served from blob storage via /documents/{name})."""
+    replacements = []
+    spans = [m.span() for m in re.finditer(r"\u3010[^\u3011]*\u2020source\u3011", text)]
+    for ann in annotations:
+        ann["text"] = ann["label"]
+        ann["url"] = "/documents/" + urllib.parse.quote(ann["label"], safe="")
+        idx = ann.get("index")
+        if idx is None:
+            continue
+        for span in spans:
+            if span[0] <= idx < span[1]:
+                replacements.append((span[0], span[1], f"[{ann['label']}]({ann['url']})"))
+                break
+    # Apply all replacements in one pass, from the end backwards, so that
+    # indexes computed against the original text stay valid.
+    for start, end, link in sorted(set(replacements), key=lambda r: r[0], reverse=True):
+        text = text[:start] + link + text[end:]
+    return text
+
+
 async def get_message_and_annotations(event: Message | ResponseOutputMessage) -> Dict:
     annotations = []
     # Get file annotations for the file search.
@@ -170,11 +194,57 @@ async def get_message_and_annotations(event: Message | ResponseOutputMessage) ->
                     "index": annotation.start_index
                 }
                 annotations.append(ann)
-            
+        if annotations:
+            text = _citation_links(text, annotations)
+
     return {
         'content': text,
         'annotations': annotations
     }
+
+
+def _get_blob_service_url() -> str:
+    """Derive the blob service endpoint from STORAGE_ACCOUNT_RESOURCE_ID."""
+    resource_id = os.getenv("STORAGE_ACCOUNT_RESOURCE_ID", "")
+    m = re.search(r"/storageAccounts/([^/]+)", resource_id)
+    if not m:
+        raise RuntimeError("STORAGE_ACCOUNT_RESOURCE_ID is not set or invalid")
+    return f"https://{m.group(1)}.blob.core.windows.net/"
+
+
+@router.get("/documents/{name:path}")
+async def get_document(name: str):
+    """Stream a source document from the blob storage container."""
+    import re as _re
+    from azure.storage.blob.aio import BlobServiceClient
+    from azure.identity.aio import DefaultAzureCredential
+    container_name = os.getenv("AZURE_BLOB_CONTAINER_NAME", "documents")
+    try:
+        async with DefaultAzureCredential() as credential:
+            async with BlobServiceClient(
+                account_url=_get_blob_service_url(), credential=credential
+            ) as blob_service_client:
+                blob_client = blob_service_client.get_blob_client(
+                    container=container_name, blob=name
+                )
+                if not await blob_client.exists():
+                    raise HTTPException(status_code=404, detail="Document not found")
+                downloader = await blob_client.download_blob()
+                data = await downloader.readall()
+        ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+        media_types = {"pdf": "application/pdf", "md": "text/markdown", "txt": "text/plain"}
+        media_type = media_types.get(ext, "application/octet-stream")
+        from fastapi.responses import Response
+        return Response(
+            content=data,
+            media_type=media_type,
+            headers={"Content-Disposition": f'inline; filename*=UTF-8\'\'{urllib.parse.quote(name, safe="")}'},
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching document '{name}': {e}")
+        raise HTTPException(status_code=500, detail="Error fetching document")
 
 
 @router.get("/", response_class=HTMLResponse)

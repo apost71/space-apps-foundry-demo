@@ -77,6 +77,11 @@ const preprocessContent = (
     .forEach((annotation) => {
       // Only process if the index is valid and within bounds
       if (annotation.index >= 0 && annotation.index <= processedContent.length) {
+        // If the annotation points at a citation token (【...】), the backend has
+        // already converted it into a markdown link — nothing to insert.
+        if (processedContent[annotation.index] === "\u3010") {
+          return;
+        }
         // If there's a label, show it (wrapped in brackets), inserting after the index
         processedContent =
           processedContent.slice(0, annotation.index + 1) +

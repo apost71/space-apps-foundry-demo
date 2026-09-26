@@ -28,7 +28,13 @@ export function AssistantMessage({
   const references = hasAnnotations
     ? message.annotations?.map((annotation, index) => (
         <div key={index} className="reference-item">
-          {annotation.text || annotation.file_name}
+          {annotation.url ? (
+            <a href={annotation.url} target="_blank" rel="noopener noreferrer">
+              {annotation.text || annotation.label || annotation.file_name}
+            </a>
+          ) : (
+            annotation.text || annotation.file_name
+          )}
         </div>
       ))
     : [];
