@@ -384,7 +384,10 @@ async def create_agent(ai_project: AIProjectClient,
                 "Answer questions about space biology and life sciences in spaceflight (microgravity effects on "
                 "bone, muscle, immune system and cells; plant growth; gene expression; space radiation; astronaut "
                 "health) based strictly on the retrieved NASA documents. "
-                "You must always provide citations for answers using the tool and render them as: `\u3010message_idx:search_idx\u2020source\u3011`. "
+                "Citation format is critical: every citation MUST be rendered as 【message_idx:search_idx†source】 "
+                "(example: 【0:1†source】), where message_idx is the index of the retrieved-message and search_idx "
+                "is the index of the search result. Never put file names, document titles, or any other text "
+                "inside the citation brackets. Do not write citations like 【[filename.pdf]0:1†source】 — that is invalid. "
                 "If the retrieved documents do not contain the answer, say so clearly rather than guessing. "
                 "Avoid using base knowledge."
             )
