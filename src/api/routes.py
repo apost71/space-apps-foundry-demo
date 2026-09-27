@@ -212,6 +212,33 @@ def _get_blob_service_url() -> str:
     return f"https://{m.group(1)}.blob.core.windows.net/"
 
 
+@router.get("/documents")
+async def list_documents():
+    """List the indexed source documents (name, size, last-modified)."""
+    from azure.storage.blob.aio import BlobServiceClient
+    from azure.identity.aio import DefaultAzureCredential
+    container_name = os.getenv("AZURE_BLOB_CONTAINER_NAME", "documents")
+    try:
+        async with DefaultAzureCredential() as credential:
+            async with BlobServiceClient(
+                account_url=_get_blob_service_url(), credential=credential
+            ) as blob_service_client:
+                container_client = blob_service_client.get_container_client(container_name)
+                docs = [
+                    {
+                        "name": blob.name,
+                        "size": blob.size,
+                        "last_modified": blob.last_modified.isoformat() if blob.last_modified else None,
+                    }
+                    async for blob in container_client.list_blobs()
+                ]
+        docs.sort(key=lambda d: d["name"])
+        return JSONResponse(content={"documents": docs})
+    except Exception as e:
+        logger.error(f"Error listing documents: {e}")
+        raise HTTPException(status_code=500, detail="Error listing documents")
+
+
 @router.get("/documents/{name:path}")
 async def get_document(name: str):
     """Stream a source document from the blob storage container."""

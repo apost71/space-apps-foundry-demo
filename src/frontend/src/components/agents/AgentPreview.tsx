@@ -6,7 +6,7 @@ import {
   Spinner,
   Title3,
 } from "@fluentui/react-components";
-import { ChatRegular, MoreHorizontalRegular } from "@fluentui/react-icons";
+import { BookRegular, ChatRegular, MoreHorizontalRegular } from "@fluentui/react-icons";
 import clsx from "clsx";
 
 import { AgentIcon } from "./AgentIcon";
@@ -587,6 +587,15 @@ export function AgentPreview({ agentDetails }: IAgentPreviewProps): ReactNode {
           >
             New Chat
           </Button>
+          <Button
+            appearance="subtle"
+            icon={<BookRegular aria-hidden={true} />}
+            aria-label="Knowledge Base"
+            title="Knowledge Base — sources the assistant draws from"
+            onClick={() => {
+              window.location.hash = "#/documents";
+            }}
+          />
           <MenuButton
             menuButtonText=""
             menuItems={menuItems}
