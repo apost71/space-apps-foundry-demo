@@ -1,20 +1,20 @@
 import { JSX } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Button,
   Spinner,
-  Table,
-  TableBody,
-  TableCell,
-  TableHeader,
-  TableHeaderCell,
-  TableRow,
+  Input,
+  Title1,
   Text,
-  Title2,
   makeStyles,
   tokens,
 } from "@fluentui/react-components";
-import { ArrowLeftRegular } from "@fluentui/react-icons";
+import {
+  ArrowLeftRegular,
+  DocumentPdfRegular,
+  SearchRegular,
+  OpenRegular,
+} from "@fluentui/react-icons";
 
 const useStyles = makeStyles({
   page: {
@@ -22,32 +22,112 @@ const useStyles = makeStyles({
     flexDirection: "column",
     alignItems: "center",
     minHeight: "100vh",
-    padding: "32px 24px",
-    backgroundColor: tokens.colorNeutralBackground1,
+    backgroundColor: tokens.colorNeutralBackground2,
     color: tokens.colorNeutralForeground1,
   },
-  inner: {
+  hero: {
     width: "100%",
-    maxWidth: "860px",
+    padding: "40px 24px 32px 24px",
+    backgroundColor: tokens.colorNeutralBackground1,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
+    boxShadow: tokens.shadow8,
   },
-  headerRow: {
+  heroInner: {
+    width: "100%",
+    maxWidth: "960px",
+    margin: "0 auto",
+  },
+  topRow: {
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    marginBottom: "8px",
+    marginBottom: "12px",
+  },
+  title: {
+    lineHeight: "1",
   },
   description: {
-    opacity: 0.8,
-    marginBottom: "24px",
+    opacity: 0.75,
+    maxWidth: "640px",
+  },
+  content: {
+    width: "100%",
+    maxWidth: "960px",
+    margin: "0 auto",
+    padding: "24px",
+    boxSizing: "border-box",
+  },
+  toolbar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "16px",
+    marginBottom: "16px",
+  },
+  search: {
+    maxWidth: "360px",
+    flexGrow: 1,
+  },
+  count: {
+    opacity: 0.7,
+    whiteSpace: "nowrap",
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+    gap: "16px",
+  },
+  card: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+    padding: "16px",
+    backgroundColor: tokens.colorNeutralBackground1,
+    borderRadius: "10px",
+    border: `1px solid ${tokens.colorNeutralStroke1}`,
+    transitionProperty: "box-shadow, transform",
+    transitionDuration: "150ms",
+    ":hover": {
+      boxShadow: tokens.shadow16,
+      transform: "translateY(-2px)",
+    },
+  },
+  cardTop: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "10px",
+  },
+  docIcon: {
+    fontSize: "24px",
+    color: tokens.colorBrandForeground1,
+    flexShrink: 0,
+  },
+  docTitle: {
+    fontWeight: tokens.fontWeightSemibold,
+    lineHeight: "1.3",
+  },
+  meta: {
+    display: "flex",
+    gap: "12px",
+    opacity: 0.65,
+    fontSize: tokens.fontSizeBase300,
+  },
+  viewLink: {
+    marginTop: "auto",
+    paddingTop: "4px",
+  },
+  empty: {
+    textAlign: "center",
+    padding: "48px 0",
+    opacity: 0.7,
   },
   footer: {
-    marginTop: "24px",
-    opacity: 0.7,
-    fontSize: "12px",
-  },
-  sizeCell: {
-    whiteSpace: "nowrap",
-    opacity: 0.8,
+    width: "100%",
+    maxWidth: "960px",
+    margin: "0 auto",
+    padding: "16px 24px 40px 24px",
+    opacity: 0.65,
+    fontSize: tokens.fontSizeBase300,
   },
 });
 
@@ -64,12 +144,18 @@ const formatSize = (bytes: number): string => {
 };
 
 const formatTitle = (name: string): string =>
-  name.replace(/\.pdf$|\.md$|\.txt$/i, "").replace(/_/g, " ");
+  name.replace(/\.(pdf|md|txt)$/i, "").replace(/_/g, " ");
+
+const formatNtrsId = (name: string): string | null => {
+  const m = name.match(/^(\d{8,12})_/);
+  return m ? `NTRS ${m[1]}` : null;
+};
 
 export function DocumentsPage(): JSX.Element {
   const styles = useStyles();
   const [docs, setDocs] = useState<IDocumentInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -86,76 +172,129 @@ export function DocumentsPage(): JSX.Element {
     load();
   }, []);
 
+  const filtered = useMemo(() => {
+    if (!docs) return [];
+    const q = query.trim().toLowerCase();
+    if (!q) return docs;
+    return docs.filter((d) => d.name.toLowerCase().includes(q));
+  }, [docs, query]);
+
+  const goBack = () => {
+    window.location.hash = "";
+  };
+
   return (
     <div className={styles.page}>
-      <div className={styles.inner}>
-        <div className={styles.headerRow}>
-          <Button
-            appearance="subtle"
-            icon={<ArrowLeftRegular />}
-            onClick={() => {
-              window.location.hash = "";
-            }}
-          >
-            Chat
-          </Button>
-          <Title2>Knowledge Base</Title2>
+      <div className={styles.hero}>
+        <div className={styles.heroInner}>
+          <div className={styles.topRow}>
+            <Button
+              appearance="subtle"
+              icon={<ArrowLeftRegular />}
+              onClick={goBack}
+            >
+              Chat
+            </Button>
+          </div>
+          <Title1 className={styles.title}>Knowledge Base</Title1>
+          <Text className={styles.description}>
+            These are the sources the research assistant draws from — every
+            answer is grounded in and cites these NASA publications.
+          </Text>
         </div>
-        <Text className={styles.description}>
-          These are the sources the research assistant draws from — every answer
-          is grounded in and cites these documents.
-        </Text>
+      </div>
+
+      <div className={styles.content}>
+        <div className={styles.toolbar}>
+          <Input
+            className={styles.search}
+            contentBefore={<SearchRegular />}
+            placeholder="Search documents..."
+            value={query}
+            onChange={(_, data) => setQuery(data.value)}
+          />
+          {docs && (
+            <Text className={styles.count}>
+              {filtered.length} of {docs.length} documents
+            </Text>
+          )}
+        </div>
+
         {error && <Text>{error}</Text>}
         {!docs && !error && <Spinner label="Loading documents..." />}
-        {docs && (
-          <Table aria-label="Source documents">
-            <TableHeader>
-              <TableRow>
-                <TableHeaderCell>Document</TableHeaderCell>
-                <TableHeaderCell>Size</TableHeaderCell>
-                <TableHeaderCell>Last modified</TableHeaderCell>
-                <TableHeaderCell />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {docs.map((doc) => (
-                <TableRow key={doc.name}>
-                  <TableCell>{formatTitle(doc.name)}</TableCell>
-                  <TableCell className={styles.sizeCell}>
-                    {formatSize(doc.size)}
-                  </TableCell>
-                  <TableCell className={styles.sizeCell}>
-                    {doc.last_modified
-                      ? new Date(doc.last_modified).toLocaleDateString()
-                      : "—"}
-                  </TableCell>
-                  <TableCell>
+
+        {docs && filtered.length === 0 && (
+          <div className={styles.empty}>
+            <Text>No documents match “{query}”.</Text>
+          </div>
+        )}
+
+        {filtered.length > 0 && (
+          <div className={styles.grid}>
+            {filtered.map((doc) => {
+              const ntrsId = formatNtrsId(doc.name);
+              return (
+                <div key={doc.name} className={styles.card}>
+                  <div className={styles.cardTop}>
+                    <DocumentPdfRegular
+                      className={styles.docIcon}
+                      aria-hidden={true}
+                    />
+                    <Text className={styles.docTitle}>
+                      {formatTitle(doc.name)}
+                    </Text>
+                  </div>
+                  <div className={styles.meta}>
+                    {ntrsId && <span>{ntrsId}</span>}
+                    <span>{formatSize(doc.size)}</span>
+                    {doc.last_modified && (
+                      <span>
+                        {new Date(doc.last_modified).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                  <div className={styles.viewLink}>
                     <a
                       href={
-                        "/documents/" +
-                        encodeURIComponent(doc.name).replace(/%20/g, "%20")
+                        "/documents/" + encodeURIComponent(doc.name)
                       }
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      View
+                      <Button
+                        size="small"
+                        appearance="subtle"
+                        icon={<OpenRegular />}
+                        iconPosition="after"
+                      >
+                        View PDF
+                      </Button>
                     </a>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
-        <div className={styles.footer}>
-          Corpus built from NASA NTRS publications via{" "}
-          <a href="https://github.com/apost71/space-apps-foundry-demo/blob/main/scripts/download_nasa_docs.py" target="_blank" rel="noopener noreferrer">
-            scripts/download_nasa_docs.py
-          </a>
-          {" · "}
-          <a href="https://github.com/apost71/space-apps-foundry-demo" target="_blank" rel="noopener noreferrer">
-            About this project ↗
-          </a>
-        </div>
+      </div>
+
+      <div className={styles.footer}>
+        Corpus built from NASA NTRS publications via{" "}
+        <a
+          href="https://github.com/apost71/space-apps-foundry-demo/blob/main/scripts/download_nasa_docs.py"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          scripts/download_nasa_docs.py
+        </a>
+        {" · "}
+        <a
+          href="https://github.com/apost71/space-apps-foundry-demo"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          About this project ↗
+        </a>
       </div>
     </div>
   );
