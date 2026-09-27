@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './components/App';
 import { DocumentsPage } from './components/core/DocumentsPage';
+import { ThemeProvider } from './components/core/theme/ThemeProvider';
 
 // Mount the React app to a div with id "react-root" that we'll add to the HTML
 const rootElement = document.getElementById('react-root');
@@ -16,7 +17,9 @@ const renderRoute = () => {
   if (window.location.hash === '#/documents') {
     ReactDOM.createRoot(rootElement).render(
       <React.StrictMode>
-        <DocumentsPage />
+        <ThemeProvider>
+          <DocumentsPage />
+        </ThemeProvider>
       </React.StrictMode>
     );
   } else {
