@@ -61,34 +61,12 @@ const preprocessContent = (
   }
 
   // Process annotations in descending order index, ascending label, remove duplicates
-  let processedContent = content;
-  annotations
-    .slice()
-    .sort((a, b) => {
-      // Primary sort: descending index
-      if (b.index !== a.index) {
-        return b.index - a.index;
-      }
-      // Secondary sort: descending label (as tiebreaker)
-      return b.label.localeCompare(a.label);
-    })
-    .filter((annotation, index, self) => 
-      index === self.findIndex(a => a.label === annotation.label && a.index === annotation.index))
-    .forEach((annotation) => {
-      // Only process if the index is valid and within bounds
-      if (annotation.index >= 0 && annotation.index <= processedContent.length) {
-        // If the annotation points at a citation token (【...】), the backend has
-        // already converted it into a markdown link — nothing to insert.
-        if (processedContent[annotation.index] === "\u3010") {
-          return;
-        }
-        // If there's a label, show it (wrapped in brackets), inserting after the index
-        processedContent =
-          processedContent.slice(0, annotation.index + 1) +
-          ` [${annotation.label}]` +
-          processedContent.slice(annotation.index + 1);
-      }
-    });
+  // NOTE: Citation rendering is handled entirely by the backend, which
+  // replaces citation tokens with markdown links in the completed message.
+  // Annotations are only used for the reference list. During streaming, raw
+  // citation tokens are hidden so they don't flash before the final message
+  // replaces them.
+  let processedContent = content.replace(/\u3010[^\u3011]*\u2020source\u3011/g, "");
   return processedContent;
 };
 
