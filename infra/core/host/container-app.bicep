@@ -65,9 +65,7 @@ param revisionMode string = 'Single'
 param dependOn string = ''
 
 @description('The secrets required for the container')
-@secure()
-param secrets object = {}
-
+param secrets array = []
 @description('The service binds associated with the container')
 param serviceBinds array = []
 
@@ -126,9 +124,11 @@ resource app 'Microsoft.App/containerApps@2023-05-02-preview' = {
         appProtocol: daprAppProtocol
         appPort: ingressEnabled ? targetPort : 0
       } : { enabled: false }
-      secrets: [for secret in items(secrets): {
-        name: secret.key
-        value: secret.value
+      secrets: [for secret in secrets: {
+        name: secret['key']
+        value: contains(secret, 'keyVaultUrl') ? null : secret['value']
+        keyVaultUrl: contains(secret, 'keyVaultUrl') ? secret['keyVaultUrl'] : null
+        identity: contains(secret, 'keyVaultUrl') ? userIdentity.id : null
       }]
       service: !empty(serviceType) ? { type: serviceType } : null
       registries: usePrivateRegistry ? [

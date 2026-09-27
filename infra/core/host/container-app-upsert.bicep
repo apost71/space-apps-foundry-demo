@@ -53,9 +53,7 @@ param identityName string = ''
 param imageName string = ''
 
 @description('The secrets required for the container')
-@secure()
-param secrets object = {}
-
+param secrets array = []
 @description('The environment variables for the container')
 param env array = []
 

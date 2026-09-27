@@ -68,6 +68,12 @@
     "useSearchService": {
       "value": "${USE_AZURE_AI_SEARCH_SERVICE=false}"
     },
+    "useTypesafeJev": {
+      "value": "${USE_TYPESAFE_JEV=false}"
+    },
+    "jevApiKey": {
+      "value": "${JEV_API_KEY=}"
+    },
     "agentName": {
       "value": "${AZURE_AI_AGENT_NAME=agent-template-assistant}"
     },

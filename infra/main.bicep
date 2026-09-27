@@ -118,6 +118,12 @@ param useStorageAccount bool = true
 @description('Do we want to use the Azure AI Search')
 param useSearchService bool = false
 
+@description('Enable TypeSafe Jev integration (external System One model API)')
+param useTypesafeJev bool = false
+@secure()
+@description('TypeSafe API key for Jev')
+param jevApiKey string = ''
+
 @description('Do we want to use the Azure Monitor tracing')
 param enableAzureMonitorTracing bool = false
 
@@ -343,6 +349,8 @@ module api 'api.bicep' = {
     blobContainerName: blobContainerName
     useAzureAISearch: useSearchService
     useStorageAccount: useStorageAccount
+    useTypesafeJev: useTypesafeJev
+    jevApiKey: jevApiKey
   }
 }
 
