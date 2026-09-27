@@ -104,6 +104,7 @@ export function AgentPreviewChatBot({
                 key={message.id}
                 agentLogo={agentLogo}
                 agentName={agentName}
+                devMode={chatContext.devMode}
                 loadingState={
                   index === messageList.length - 1 && chatContext.isResponding
                     ? "loading"

@@ -128,6 +128,22 @@ export function AgentPreview({ agentDetails }: IAgentPreviewProps): ReactNode {
     description: string;
     aboutUrl: string;
   }>({ questions: [], description: "", aboutUrl: "" });
+  const [devMode, setDevMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("jevDevMode") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleDevMode = () => {
+    setDevMode((prev) => {
+      try {
+        localStorage.setItem("jevDevMode", String(!prev));
+      } catch {}
+      return !prev;
+    });
+  };
 
   useEffect(() => {
     const loadStarterConfig = async () => {
@@ -351,6 +367,25 @@ export function AgentPreview({ agentDetails }: IAgentPreviewProps): ReactNode {
               console.log("[ChatClient] Stream end marker received.");
               setIsResponding(false);
               break;
+            } else if (data.type === "jev_routing") {
+              // Jev decision arrives before the agent streams — attach to the
+              // (existing or new) balloon so dev mode can render the chip.
+              if (!chatItem) {
+                chatItem = createAssistantMessageDiv();
+              }
+              chatItem.jevRouting = data.data;
+              if (data.data?.model) {
+                chatItem.jevRouting.model = data.data.model;
+              }
+              setMessageList((prev) => [...prev.slice(0, -1), { ...chatItem! }]);
+              continue;
+            } else if (data.type === "jev_verification") {
+              // Attach verification results to the most recent completed balloon.
+              if (chatItem) {
+                chatItem.jevVerification = data.data;
+                setMessageList((prev) => [...prev.slice(0, -1), { ...chatItem! }]);
+              }
+              continue;
             } else if (data.type === "thread_run") {
               // Log the run status info
               console.log("[ChatClient] Run status info:", data.content);
@@ -381,8 +416,8 @@ export function AgentPreview({ agentDetails }: IAgentPreviewProps): ReactNode {
                   accumulatedContent = data.content;
                   annotations = data.annotations || [];
                   hasReceivedCompletedMessage = true;
-                }
-                
+                }                
+                chatItem.jevSkippedLlm = Boolean(data.jev_skipped_llm);
                 console.log(
                   "[ChatClient] Received completed message:",
                   accumulatedContent
@@ -491,6 +526,11 @@ export function AgentPreview({ agentDetails }: IAgentPreviewProps): ReactNode {
   };
   const menuItems = [
     {
+      key: "devmode",
+      children: `Developer Mode: ${devMode ? "ON" : "OFF"}`,
+      onClick: toggleDevMode,
+    },
+    {
       key: "settings",
       children: "Settings",
       onClick: () => {
@@ -537,8 +577,9 @@ export function AgentPreview({ agentDetails }: IAgentPreviewProps): ReactNode {
       messageList,
       isResponding,
       onSend,
+      devMode,
     }),
-    [messageList, isResponding]
+    [messageList, isResponding, devMode]
   );
   const isEmpty = (messageList?.length ?? 0) === 0;
 

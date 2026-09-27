@@ -27,6 +27,8 @@ from azure.ai.projects.aio import AIProjectClient
 
 from util import encode_project_resource_id
 
+from api.jev_client import route_question, verify_citations, JEV_CONFIDENCE_THRESHOLD
+
 from urllib.parse import quote
 
 
@@ -318,10 +320,44 @@ async def get_result(
         async with project_client.get_openai_client() as openai_client:
             logger.info(f"get_result invoked for conversation={conversation.id}")
             input_created_at = datetime.now(timezone.utc).timestamp()
-            try:
+
+            # --- Jev: System One routing (fast, typed decision before the LLM) ---
+            jev = await route_question(user_message)
+            if jev:
+                logger.info(f"Jev routing: {jev['route']} (conf {jev['route_confidence']}) topic={jev['topic']} in {jev['latency_ms']}ms")
+                yield serialize_sse_event({'type': "jev_routing", 'data': jev})
+                if jev['route'] == 'off_topic' and (jev['route_confidence'] or 0) >= JEV_CONFIDENCE_THRESHOLD:
+                    refusal = (
+                        "I can't help with that here. This assistant is a Space Biology Knowledge Engine — "
+                        "it answers research questions about space biology, life sciences, and astronaut health, "
+                        "grounded in NASA publications. Try asking about one of those topics."
+                    )
+                    yield serialize_sse_event({
+                        'content': refusal,
+                        'annotations': [],
+                        'type': "completed_message",
+                        'jev_skipped_llm': True,
+                    })
+                    yield serialize_sse_event({'type': "stream_end"})
+                    return
+
+            # Jev steers the agent: topic hint injected into the turn's input
+            effective_input = user_message
+            if jev and jev.get('route') != 'off_topic' and jev.get('topic'):
+                effective_input = (
+                    f"{user_message}\n\n"
+                    f"[Routing layer note: classified as '{jev['route']}' in domain '{jev['topic']}' "
+                    f"with confidence {jev['route_confidence']:.2f}. Factor this assessment into your retrieval and answer.]"
+                )
+
+            async def run_agent_stream(agent_input: str, result: dict):
+                """Stream one agent run; SSE events are yielded, final text and
+                annotations are written into `result`."""
+                collected_text = ""
+                collected_annotations = []
                 async with openai_client.responses.stream(
                     conversation=conversation.id,
-                    input=user_message,
+                    input=agent_input,
                     extra_body={"agent_reference": {"name": agent.name, "type": "agent_reference"}},
                     model=os.environ["AZURE_AI_AGENT_DEPLOYMENT_NAME"]
                 ) as stream:
@@ -337,16 +373,65 @@ async def get_result(
                             yield serialize_sse_event({'content': '', 'type': "message"})
                         elif event.type == "response.output_text.delta":
                             logger.info(f"Delta: {event.delta}")
+                            collected_text += event.delta
                             stream_data = {'content': event.delta, 'type': "message"}
                             yield serialize_sse_event(stream_data)
                         elif event.type == "response.output_item.done" and event.item.type == "message":
                             stream_data = await get_message_and_annotations(event.item)
+                            collected_text = stream_data['content']
+                            collected_annotations = stream_data.get('annotations', [])
                             stream_data['type'] = "completed_message"
                             yield serialize_sse_event(stream_data)
+                    await stream.get_final_response()
+                result['text'] = collected_text
+                result['annotations'] = collected_annotations
 
-                    final_response = await stream.get_final_response()
-                    logger.info(f"Response completed with full message: {final_response.output_text}")
-                                                        
+            try:
+                final_text = ""
+                final_annotations = []
+                primary = {"text": "", "annotations": []}
+                agen = run_agent_stream(effective_input, primary)
+                while True:
+                    try:
+                        yield await agen.__anext__()
+                    except StopAsyncIteration:
+                        break
+                final_text = primary['text']
+                final_annotations = primary['annotations']
+
+                # --- Jev: citation verification + one re-answer loop ---
+                verification = await verify_citations(
+                    final_text,
+                    [{"label": a.get("label", ""), "passage": ""} for a in final_annotations],
+                )
+                if verification:
+                    weak = [
+                        r for r in verification['results']
+                        if (r.get('supported') is not None and r['supported'] < JEV_CONFIDENCE_THRESHOLD)
+                    ]
+                    yield serialize_sse_event({'type': "jev_verification", 'data': verification})
+
+                    if weak:
+                        weak_labels = ', '.join(sorted({r['label'] for r in weak if r['label']}))
+                        correction_input = (
+                            f"{user_message}\n\n"
+                            f"[Quality layer note: your previous answer cited '{weak_labels}', which a citation-verification "
+                            f"model scored below the confidence threshold. Re-answer this question, avoiding "
+                            f"unsupported claims and citing only sources you are confident support them.]"
+                        )
+                        logger.info(f"Jev verification failed for: {weak_labels}; re-answering")
+                        yield serialize_sse_event({
+                            'content': "⚠ Citation verification flagged a weak source — re-answering with stricter grounding...",
+                            'annotations': [],
+                            'type': "message",
+                        })
+                        agen2 = run_agent_stream(correction_input, {"text": "", "annotations": []})
+                        while True:
+                            try:
+                                sse = await agen2.__anext__()
+                                yield sse
+                            except StopAsyncIteration as stop2:
+                                break
             except Exception as e:
                 logger.exception(f"Exception in get_result: {e}")
                 error_data = {
@@ -358,7 +443,8 @@ async def get_result(
             finally:
                 stream_data = {'type': "stream_end"}
                 await save_user_message_created_at(openai_client, conversation, input_created_at)
-                yield serialize_sse_event(stream_data)           
+                yield serialize_sse_event(stream_data)
+
 
 
 

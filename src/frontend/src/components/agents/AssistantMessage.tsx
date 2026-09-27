@@ -10,6 +10,7 @@ import { Suspense } from "react";
 import { Markdown } from "../core/Markdown";
 import { UsageInfo } from "./UsageInfo";
 import { IAssistantMessageProps } from "./chatbot/types";
+import { JevInsights, JevRoutingChip } from "./JevInsights";
 
 import styles from "./AgentPreviewChatBot.module.css";
 import { AgentIcon } from "./AgentIcon";
@@ -23,6 +24,7 @@ export function AssistantMessage({
   agentName,
   showUsageInfo,
   onDelete,
+  devMode,
 }: IAssistantMessageProps): React.JSX.Element {
   const hasAnnotations = message.annotations && message.annotations.length > 0;
   const references = hasAnnotations
@@ -40,7 +42,9 @@ export function AssistantMessage({
     : [];
 
   return (
-    <CopilotMessage
+    <div>
+      {devMode && message.jevRouting && <JevRoutingChip routing={message.jevRouting} />}
+      <CopilotMessage
       id={"msg-" + message.id}
       key={message.id}
       actions={
@@ -89,5 +93,13 @@ export function AssistantMessage({
         <Markdown content={message.content} />
       </Suspense>
     </CopilotMessage>
+      {devMode && (
+        <JevInsights
+          routing={message.jevRouting}
+          verification={message.jevVerification}
+          skippedLlm={message.jevSkippedLlm}
+        />
+      )}
+    </div>
   );
 }

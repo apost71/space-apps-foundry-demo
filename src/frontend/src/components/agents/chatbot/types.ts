@@ -42,6 +42,9 @@ export interface IChatItem {
   more?: {
     time?: string;
   };
+  jevRouting?: any;
+  jevVerification?: any;
+  jevSkippedLlm?: boolean;
 }
 
 export interface ChatInputProps {
@@ -57,6 +60,7 @@ export interface IAssistantMessageProps {
   loadingState?: "loading" | "streaming" | "none";
   showUsageInfo?: boolean;
   onDelete?: (messageId: string) => Promise<void>;
+  devMode?: boolean;
 }
 
 export interface IUserMessageProps {
@@ -68,6 +72,7 @@ export interface ChatContextType {
   messageList: IChatItem[];
   isResponding: boolean;
   onSend: (message: string) => void;
+  devMode?: boolean;
 }
 
 export interface AgentPreviewChatBotProps {
