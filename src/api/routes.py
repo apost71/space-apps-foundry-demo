@@ -400,9 +400,13 @@ async def get_result(
                 final_annotations = primary['annotations']
 
                 # --- Jev: citation verification + one re-answer loop ---
+                # Verify each *unique* source once (not once per citation token),
+                # reporting the worst score across that document's citations.
+                unique_labels = sorted({a.get("label", "") for a in final_annotations if a.get("label")})
                 verification = await verify_citations(
                     final_text,
-                    [{"label": a.get("label", ""), "passage": ""} for a in final_annotations],
+                    [{"label": lbl, "passage": "", "citations": sum(1 for a in final_annotations if a.get("label") == lbl)}
+                     for lbl in unique_labels],
                 )
                 if verification:
                     weak = [

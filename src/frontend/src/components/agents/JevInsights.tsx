@@ -50,10 +50,11 @@ const useStyles = makeStyles({
     gap: "8px",
   },
   label: {
-    width: "110px",
+    width: "190px",
     flexShrink: 0,
-  },
-  barTrack: {
+    fontSize: "11px",
+    lineHeight: "1.2",
+  },  barTrack: {
     flexGrow: 1,
     height: "8px",
     borderRadius: "4px",
@@ -166,16 +167,24 @@ export function JevInsights({
           )}
           {verification && (
             <>
-              <Text className={styles.sectionTitle}>Citation verification (Jev)</Text>
+              <Text className={styles.sectionTitle}>
+                Citation verification (Jev) ·{" "}
+                {verification.results?.reduce((n: number, r: any) => n + (r.citations || 1), 0)} citations
+                across {verification.results?.length} sources
+              </Text>
               {verification.results?.map((r: any, i: number) => (
                 <ProbBar
                   key={`v-${i}`}
-                  label={(r.label || "source").replace(/\.pdf$/i, "").slice(0, 22)}
+                  label={
+                    `${(r.label || "source")
+                      .replace(/\.pdf$/i, "")
+                      .replace(/^\d{8,12}_/, "")
+                      .slice(0, 26)}` + (r.citations > 1 ? ` (×${r.citations})` : "")
+                  }
                   value={r.supported}
                   warn={r.supported != null && r.supported < 0.6}
                 />
-              ))}
-              {verification.latency_ms != null && (
+              ))}              {verification.latency_ms != null && (
                 <Text>
                   <ArrowRightRegular aria-hidden={true} /> verified in {verification.latency_ms}ms · {verification.model}
                 </Text>

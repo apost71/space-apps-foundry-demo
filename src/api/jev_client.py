@@ -127,6 +127,7 @@ async def verify_citations(answer: str, citations: list[Dict[str, str]]) -> Opti
                 "label": c.get("label"),
                 "supported": ans.get("noul"),
                 "confidence": ans.get("confidence"),
+                "citations": c.get("citations", 1),
             }
         )
     return {"results": results, "latency_ms": data.get("latency_ms"), "model": data.get("model")}
